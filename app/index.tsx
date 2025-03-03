@@ -10,6 +10,7 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import {
   useFonts,
@@ -26,7 +27,7 @@ import JobCard from "@/components/dashboard/card";
 import { NoOfCVEByYearGraph } from "@/components/dashboard/NoOfCVEByYearGraph";
 import { VulnerabilitiesByTypeChart } from "@/components/dashboard/VulneranbilitiesByTypeChartPie";
 import { VulnerabilitiesByTypeAndYearChart } from "@/components/dashboard/VulnerabilitiesByTypeAndYear";
-import { VulnerabilityTables } from "@/components/dashboard/VulnerabilityTable";
+import VulnerabilityTable from "@/components/dashboard/VulnerabilityTable";
 import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
 
 const { width, height } = Dimensions.get("window");
@@ -40,6 +41,28 @@ interface CVE {
   source: string;
   summary: string;
   updateddate: string;
+}
+
+// Define an interface for raw API CVE data
+interface RawCVE {
+  id?: string;
+  cveid?: string;
+  epssscore?: string;
+  cvss?: string;
+  maxcvss?: string;
+  published?: string;
+  publisheddate?: string;
+  source?: string;
+  summary?: string;
+  lastModified?: string;
+  updateddate?: string;
+  [key: string]: any; // Allow for any other properties
+}
+
+// Define yearly data structure
+interface YearData {
+  year: string;
+  data: RawCVE[];
 }
 
 export default function Index() {
@@ -57,79 +80,199 @@ export default function Index() {
   const [cves, setCves] = useState<CVE[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cvesData, setCvesData] = useState<YearData[]>([]);
+  const [yearFilters, setYearFilters] = useState<{id: string, label: string}[]>([]);
+  
+  // Generate an array of years from 2015 to current year
+  const getAllYears = useCallback(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = 2015; year <= currentYear; year++) {
+      years.push(year.toString());
+    }
+    return years.sort((a, b) => b.localeCompare(a)); // Sort in descending order (newest first)
+  }, []);
 
-  // Fetch or initialize CVE data
-  useEffect(() => {
-    // Simulating data fetching with validation
+  // Enhanced convertRawCVE function to better handle various API response formats
+  const convertRawCVE = useCallback((rawCVE: RawCVE, year: string): CVE => {
+    // Handle null or undefined input
+    if (!rawCVE) {
+      return {
+        cveid: `Unknown-${Math.random().toString(36).substr(2, 9)}`,
+        epssscore: "N/A",
+        maxcvss: "N/A",
+        publisheddate: `${year}-01-01`,
+        source: "Unknown Source",
+        summary: "No summary available",
+        updateddate: `${year}-01-01`
+      };
+    }
+
+    // Extract the CVE ID either from id or cveid property
+    let cveId = rawCVE.id || rawCVE.cveid;
+    if (!cveId) {
+      // If no ID is found, generate a random one
+      cveId = `Unknown-${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    // Extract date from either published or publisheddate
+    let publishedDate = rawCVE.published || rawCVE.publisheddate;
+    if (!publishedDate) {
+      // If no date is found, use January 1st of the year
+      publishedDate = `${year}-01-01`;
+    }
+
+    // Extract updated date from either lastModified or updateddate
+    let updatedDate = rawCVE.lastModified || rawCVE.updateddate;
+    if (!updatedDate) {
+      // If no updated date is found, use the published date
+      updatedDate = publishedDate;
+    }
+
+    // Extract CVSS score from either cvss or maxcvss
+    let cvssScore = rawCVE.cvss || rawCVE.maxcvss;
+
+    return {
+      cveid: cveId,
+      epssscore: rawCVE.epssscore || "N/A",
+      maxcvss: cvssScore || "N/A",
+      publisheddate: publishedDate,
+      source: rawCVE.source || "Unknown Source",
+      summary: rawCVE.summary || "No summary available",
+      updateddate: updatedDate
+    };
+  }, []);
+
+  // Updated fetchYearData function to properly handle data for all years (2015-Present)
+  const fetchYearData = useCallback(async () => {
     try {
-      const today = new Date();
-      // Sample data - in a real app, this would come from an API
-      const sampleCves = [
-        {
-          cveid: "CVE-2024-56803",
-          epssscore: "0.04%",
-          maxcvss: "5.1",
-          publisheddate: "2024-12-31",
-          source: "Source: GitHub, Inc.",
-          summary:
-            'Ghostty is a cross-platform terminal emulator. Ghostty, as allowed by default in 1.0.0, allows attackers to modify the window title via a certain character escape sequence and then insert it back to the command line in the user\'s terminal, e.g. when the user views a file containing the malicious sequence, which could allow the attacker to execute arbitrary commands. This attack requires an attacker to send malicious escape sequences followed by convincing the user to physically press the "enter" key. Fixed in Ghostty v1.0.1.',
-          updateddate: "2024-12-31",
-        },
-        {
-          cveid: "CVE-2024-12345",
-          epssscore: "0.12%",
-          maxcvss: "7.5",
-          publisheddate: "2024-11-15",
-          source: "Source: NIST",
-          summary:
-            "A vulnerability in XYZ software allows remote attackers to bypass authentication and gain access to sensitive data. The issue affects versions prior to 2.3.4 and has been patched in version 2.3.5.",
-          updateddate: "2024-11-16",
-        },
-        {
-          cveid: "CVE-2024-67890",
-          epssscore: "0.30%",
-          maxcvss: "8.2",
-          publisheddate: "2024-10-05",
-          source: "Source: MITRE",
-          summary:
-            "An SQL injection vulnerability in the login module of ABC web application allows attackers to execute arbitrary SQL queries, potentially leading to unauthorized access. The issue is resolved in patch v1.5.7.",
-          updateddate: "2024-10-06",
-        },
-        {
-          cveid: "CVE-2023-98765",
-          epssscore: "0.50%",
-          maxcvss: "6.9",
-          publisheddate: "2023-08-20",
-          source: "Source: CVE Details",
-          summary:
-            "An insecure deserialization vulnerability in the XYZ service allows remote attackers to execute arbitrary code, which could lead to a complete system compromise. The issue was patched in version 3.2.1.",
-          updateddate: "2023-08-21",
-        },
-        {
-          cveid: "CVE-2023-43210",
-          epssscore: "0.35%",
-          maxcvss: "9.0",
-          publisheddate: "2023-09-05",
-          source: "Source: CVE Info",
-          summary:
-            "A critical vulnerability in the PQR application allows remote attackers to execute arbitrary commands on vulnerable systems. The flaw was patched in version 1.2.3.",
-          updateddate: "2023-09-06",
-        },
-      ];
+      const years = getAllYears();
+      const newCvesData: YearData[] = [];
+      let allFormattedCVEs: CVE[] = [];
+      
+      // Show loading state
+      setIsLoading(true);
+      
+      for (const year of years) {
+        console.log(`Fetching data for year ${year}...`);
+        try {
+          const response = await fetch(`https://acs-hackathon-backend.onrender.com/scrape-by-date/${year}`,{
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
 
-      // Filter out future-dated CVEs (beyond current date)
-      const validCves = sampleCves.filter((cve) => {
-        const cveDate = new Date(cve.publisheddate);
-        return cveDate <= today;
-      });
-
-      setCves(validCves);
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}`);
+          }
+          
+          const data = await response.json();
+          console.log(data);
+          let processedData: RawCVE[] = [];
+          
+          // Handle different possible data structures
+          if (typeof data === 'object' && !Array.isArray(data) && data !== null) {
+            // Handle object format (like the 2025 data with numeric keys)
+            processedData = Object.values(data).map(cve => {
+              // Handle both possible formats
+              if (typeof cve === 'object' && cve !== null) {
+                if ('cveid' in cve) {
+                  // Format as seen in 2025 data
+                  return {
+                    id: cve.cveid,
+                    epssscore: cve.epssscore,
+                    cvss: cve.maxcvss,
+                    published: cve.publisheddate,
+                    source: cve.source,
+                    summary: cve.summary,
+                    lastModified: cve.updateddate
+                  };
+                } else {
+                  // Standard raw API format
+                  return cve as RawCVE;
+                }
+              }
+              return null;
+            }).filter(Boolean) as RawCVE[];
+          } else if (Array.isArray(data)) {
+            // If data is already an array
+            processedData = data;
+          } else {
+            // Fallback for unexpected formats
+            console.warn(`Unexpected data format for year ${year}:`, typeof data);
+            processedData = [];
+          }
+          
+          // Store the processed data
+          if (processedData.length > 0) {
+            newCvesData.push({
+              year,
+              data: processedData
+            });
+            
+            // Convert to standardized CVE format
+            const formattedCVEs = processedData.map(cve => convertRawCVE(cve, year));
+            allFormattedCVEs = [...allFormattedCVEs, ...formattedCVEs];
+            
+            console.log(`Successfully fetched data for year ${year}. Items: ${processedData.length}`);
+          } else {
+            console.log(`No data found for year ${year}`);
+          }
+        } catch (yearError) {
+          console.error(`Error fetching data for year ${year}:`, yearError);
+          // Continue with other years even if one fails
+        }
+      }
+      
+      // Update the full years data
+      setCvesData(newCvesData);
+      console.log(`Total years data collected: ${newCvesData.length}`);
+      
+      // Update the filter options with all years that have data
+      const yearsWithData = newCvesData.map(yd => yd.year);
+      const allYears = ["all", ...yearsWithData];
+      const newFilters = allYears.map(year => ({
+        id: year,
+        label: year === "all" ? "All Years" : year
+      }));
+      setYearFilters(newFilters);
+      
+      // Update the combined CVEs list
+      if (allFormattedCVEs.length > 0) {
+        setCves(allFormattedCVEs);
+        console.log(`Total CVEs loaded: ${allFormattedCVEs.length}`);
+      } else {
+        // If no data was found, use a fallback message
+        setError("No vulnerability data found for any year");
+      }
+      
       setIsLoading(false);
-    } catch (err) {
+    } catch (error) {
+      console.error("Error in fetchYearData:", error);
       setError("Failed to load vulnerability data");
       setIsLoading(false);
     }
-  }, []);
+  }, [getAllYears, convertRawCVE]);
+
+  // Updated useEffect to remove sample data and initialize the app state
+  useEffect(() => {
+    // Initialize with empty array instead of sample data
+    setCves([]);
+    setError(null);
+    
+    // Initialize year filters with all years from 2015 to present
+    const years = getAllYears();
+    const initialFilters = ["all", ...years].map(year => ({
+      id: year,
+      label: year === "all" ? "All Years" : year
+    }));
+    setYearFilters(initialFilters);
+    
+    // Fetch data for all years
+    fetchYearData();
+  }, [fetchYearData, getAllYears]);
 
   useEffect(() => {
     async function prepare() {
@@ -139,31 +282,6 @@ export default function Index() {
     }
     prepare();
   }, [fontsLoaded]);
-
-  // Memoized year filters to prevent recalculation on each render
-  const filterOptions = useMemo(() => {
-    const years = new Set();
-    // Add "All" option
-    years.add("all");
-
-    // Extract years from data
-    cves.forEach((cve) => {
-      const year = cve.publisheddate.split("-")[0];
-      years.add(year);
-    });
-
-    // Convert to array and sort
-    const yearFilters = Array.from(years).sort((a: any, b: any) => {
-      if (a === "all") return -1; // "All" should be first
-      if (b === "all") return 1;
-      return b.localeCompare(a); // Most recent years first
-    });
-
-    return yearFilters.map((year) => ({
-      id: year,
-      label: year === "all" ? "All Years" : year,
-    }));
-  }, [cves]);
 
   // Memoized filtered CVEs to prevent recalculation on each render
   const filteredCVEs = useMemo(() => {
@@ -178,13 +296,13 @@ export default function Index() {
   }, [cves, activeFilter]);
 
   // Get display name for active filter
-  const getActiveFilterLabel: any = useCallback(() => {
-    const filter = filterOptions.find((item) => item.id === activeFilter);
+  const getActiveFilterLabel = useCallback(() => {
+    const filter = yearFilters.find((item) => item.id === activeFilter);
     return filter ? filter.label : "All Years";
-  }, [filterOptions, activeFilter]);
+  }, [yearFilters, activeFilter]);
 
   // Handle scroll event to update active index
-  const handleScroll = useCallback((event: any) => {
+  const handleScroll = useCallback((event) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / width);
     setActiveIndex(index);
@@ -196,7 +314,7 @@ export default function Index() {
   }, [dropdownVisible]);
 
   // Select filter from dropdown
-  const selectFilter = useCallback((filterId: any) => {
+  const selectFilter = useCallback((filterId) => {
     setActiveFilter(filterId);
     setDropdownVisible(false);
   }, []);
@@ -207,8 +325,10 @@ export default function Index() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, styles.centerContent]}>
-        <Text style={styles.text}>Loading vulnerabilities...</Text>
+    <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6722A8" />
+        <Text style={styles.loadingText}>Loading vulnerability data...</Text>
+        <StatusBar style="auto" />
       </SafeAreaView>
     );
   }
@@ -219,7 +339,11 @@ export default function Index() {
         <Text style={styles.text}>{error}</Text>
         <TouchableOpacity
           style={styles.retryButton}
-          onPress={() => setIsLoading(true)}
+          onPress={() => {
+            setIsLoading(true);
+            setError(null);
+            fetchYearData();
+          }}
         >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
@@ -297,11 +421,11 @@ export default function Index() {
             accessibilityLabel="List of vulnerability cards"
           />
         </View>
-        {/* Pass CVE data to the graph component */}
-        <NoOfCVEByYearGraph cves={cves} />
-        <VulnerabilitiesByTypeChart cves={cves} />
-        <VulnerabilitiesByTypeAndYearChart cves={cves} />
-        <VulnerabilityTables cves={cves} />
+        {/* Pass both the formatted CVEs and the raw year data to the graph components */}
+        <NoOfCVEByYearGraph cves={cves} yearsData={cvesData} />
+        <VulnerabilitiesByTypeChart cves={cves} yearsData={cvesData} />
+        <VulnerabilitiesByTypeAndYearChart cves={cves} yearsData={cvesData} />
+        <VulnerabilityTable  />
         {/* Add additional padding at the bottom for better scrolling experience */}
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -331,7 +455,7 @@ export default function Index() {
             ]}
           >
             <ScrollView>
-              {filterOptions.map((item: any) => (
+              {yearFilters.map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
@@ -366,6 +490,17 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#eee',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "#111",
