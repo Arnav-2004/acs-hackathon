@@ -30,7 +30,7 @@ export function IconsUser() {
           y2={12}
           gradientUnits="userSpaceOnUse"
         >
-          <Stop stopColor="#1888FF" />
+          <Stop stopColor="#6722A8" />
           <Stop offset={1} stopColor="#372B76" />
         </LinearGradient>
         <LinearGradient
@@ -41,7 +41,7 @@ export function IconsUser() {
           y2={22}
           gradientUnits="userSpaceOnUse"
         >
-          <Stop stopColor="#1888FF" />
+          <Stop stopColor="#6722A8" />
           <Stop offset={1} stopColor="#372B76" />
         </LinearGradient>
       </Defs>

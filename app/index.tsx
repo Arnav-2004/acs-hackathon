@@ -27,6 +27,7 @@ import { NoOfCVEByYearGraph } from "@/components/dashboard/NoOfCVEByYearGraph";
 import { VulnerabilitiesByTypeChart } from "@/components/dashboard/VulneranbilitiesByTypeChartPie";
 import { VulnerabilitiesByTypeAndYearChart } from "@/components/dashboard/VulnerabilitiesByTypeAndYear";
 import { VulnerabilityTables } from "@/components/dashboard/VulnerabilityTable";
+import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
 
 const { width, height } = Dimensions.get("window");
 
@@ -357,6 +358,9 @@ export default function Index() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Fixed Navigation Bar at the bottom */}
+      <FixedNavigationBar />
     </SafeAreaView>
   );
 }
@@ -365,6 +369,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#111",
+    position: "relative", // Add this to ensure nav bar positioning works
   },
   container: {
     flex: 1,
@@ -375,6 +380,7 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     flexGrow: 1,
+    paddingBottom: 80, // Add padding to ensure content doesn't hide behind nav bar
   },
   centerContent: {
     justifyContent: "center",
@@ -457,7 +463,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255, 255, 255, 0.05)",
   },
   activeDropdownItem: {
-    backgroundColor: "rgba(30, 144, 255, 0.1)",
+    backgroundColor: "rgba(180, 5, 255, 0.1)",
   },
   dropdownItemText: {
     color: "#eee",
@@ -465,7 +471,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   activeDropdownItemText: {
-    color: "#1E90FF",
+    color: "#6722A8",
     fontFamily: "Inter_600SemiBold",
   },
   emptyContainer: {
