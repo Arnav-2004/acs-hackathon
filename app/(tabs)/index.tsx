@@ -1,17 +1,14 @@
-import { Link } from "expo-router";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import React from "react";
 
-export default function Index() {
+const DashboardScreen = () => {
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Link href={"/login"}>Go to login</Link>
-      <Link href={"/sign-up"}>Go to SignUp</Link>
+    <View>
+      <Text>DashboardScreen</Text>
     </View>
   );
-}
+};
+
+export default DashboardScreen;
+
+const styles = StyleSheet.create({});
