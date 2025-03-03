@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Pencil } from "lucide-react-native";
+import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
 
 const ProfileScreen = () => {
   const [userData, setUserData] = useState({
@@ -186,6 +187,7 @@ const ProfileScreen = () => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+      <FixedNavigationBar  />
     </SafeAreaView>
   );
 };
