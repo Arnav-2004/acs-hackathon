@@ -2,15 +2,13 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, SafeAreaView } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
-const AuthLayout = ({
-  children,
-  title,
-  subtitle,
-}: {
+interface AuthLayoutProps {
   children: any;
   title: string;
   subtitle: string;
-}) => {
+}
+
+const AuthLayout = ({ children, title, subtitle }: AuthLayoutProps) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -42,7 +40,7 @@ const AuthLayout = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "#111",
   },
   scrollContainer: {
     flexGrow: 1,
@@ -59,7 +57,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "#782aff",
-    opacity: 0.3,
+    opacity: 0.5,
   },
   headerContent: {
     flex: 1,
