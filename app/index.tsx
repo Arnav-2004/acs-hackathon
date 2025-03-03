@@ -250,7 +250,7 @@ export default function Index() {
 
         <View style={styles.section}>
           <Text style={[styles.text, { paddingHorizontal: 30 }]}>
-            Your Website
+            Weekly Report
           </Text>
 
           {/* Year Dropdown - Improved Accessibility */}
