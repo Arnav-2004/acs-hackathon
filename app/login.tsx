@@ -10,7 +10,6 @@ const LoginScreen = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Validation states
   const [errors, setErrors] = useState({ email: "", password: "" });
 
   const validateForm = () => {
@@ -43,7 +42,7 @@ const LoginScreen = () => {
 
   return (
     <AuthLayout title="Welcome back" subtitle="Log in to your account">
-      <View style={styles.innerContainer}>
+      <View style={styles.container}>
         <InputField
           label="Email"
           placeholder="you@example.com"
@@ -86,10 +85,6 @@ export default LoginScreen;
 
 const styles = StyleSheet.create({
   container: {
-    width: "100%",
-    paddingBottom: 40,
-  },
-  innerContainer: {
     display: "flex",
     flexDirection: "column",
     gap: "1rem",
