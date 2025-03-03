@@ -10,6 +10,7 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import {
   useFonts,
@@ -26,7 +27,7 @@ import JobCard from "@/components/dashboard/card";
 import { NoOfCVEByYearGraph } from "@/components/dashboard/NoOfCVEByYearGraph";
 import { VulnerabilitiesByTypeChart } from "@/components/dashboard/VulneranbilitiesByTypeChartPie";
 import { VulnerabilitiesByTypeAndYearChart } from "@/components/dashboard/VulnerabilitiesByTypeAndYear";
-import { VulnerabilityTables } from "@/components/dashboard/VulnerabilityTable";
+import VulnerabilityTable from "@/components/dashboard/VulnerabilityTable";
 import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
 
 const { width, height } = Dimensions.get("window");
@@ -324,8 +325,10 @@ export default function Index() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, styles.centerContent]}>
-        <Text style={styles.text}>Loading vulnerabilities...</Text>
+    <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6722A8" />
+        <Text style={styles.loadingText}>Loading vulnerability data...</Text>
+        <StatusBar style="auto" />
       </SafeAreaView>
     );
   }
@@ -422,7 +425,7 @@ export default function Index() {
         <NoOfCVEByYearGraph cves={cves} yearsData={cvesData} />
         <VulnerabilitiesByTypeChart cves={cves} yearsData={cvesData} />
         <VulnerabilitiesByTypeAndYearChart cves={cves} yearsData={cvesData} />
-        <VulnerabilityTables cves={cves} yearsData={cvesData} />
+        <VulnerabilityTable  />
         {/* Add additional padding at the bottom for better scrolling experience */}
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -487,6 +490,17 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#eee',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "#111",
