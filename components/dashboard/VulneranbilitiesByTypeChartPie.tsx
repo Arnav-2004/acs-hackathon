@@ -242,7 +242,7 @@ export const VulnerabilitiesByTypeChart = ({
           accessor={"population"}
           backgroundColor={"transparent"}
           paddingLeft={"0"}
-          center={[width / 4.8, 0]} // Adjust this to center the chart
+          center={[width / 4.8, 0]}
           absolute
           hasLegend={false}
         />
