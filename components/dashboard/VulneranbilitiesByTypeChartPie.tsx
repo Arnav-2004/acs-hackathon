@@ -11,7 +11,7 @@ import {
 const { width } = Dimensions.get("window");
 
 // Type definition for CVE data
-interface CVE {
+export interface CVE {
   cveid: string;
   epssscore: string;
   maxcvss: string;
@@ -28,7 +28,7 @@ interface VulnerabilityCategory {
   color: string;
 }
 
-interface VulnerabilitiesByTypeChartProps {
+export interface VulnerabilitiesByTypeChartProps {
   cves?: CVE[];
 }
 

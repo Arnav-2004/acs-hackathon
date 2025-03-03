@@ -25,23 +25,18 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { IconsUser } from "@/components/dashboard/IconUser";
 import JobCard from "@/components/dashboard/card";
 import { NoOfCVEByYearGraph } from "@/components/dashboard/NoOfCVEByYearGraph";
-import { VulnerabilitiesByTypeChart } from "@/components/dashboard/VulneranbilitiesByTypeChartPie";
+import {
+  CVE,
+  VulnerabilitiesByTypeChart,
+} from "@/components/dashboard/VulneranbilitiesByTypeChartPie";
 import { VulnerabilitiesByTypeAndYearChart } from "@/components/dashboard/VulnerabilitiesByTypeAndYear";
 import VulnerabilityTable from "@/components/dashboard/VulnerabilityTable";
 import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
+import useAuthStore from "@/utils/store";
 
 const { width, height } = Dimensions.get("window");
 
-// Type definitions for CVE data
-interface CVE {
-  cveid: string;
-  epssscore: string;
-  maxcvss: string;
-  publisheddate: string;
-  source: string;
-  summary: string;
-  updateddate: string;
-}
+// Type definitions for CVE dat
 
 // Define an interface for raw API CVE data
 interface RawCVE {
@@ -66,6 +61,8 @@ interface YearData {
 }
 
 export default function Index() {
+  const { username } = useAuthStore();
+
   const [fontsLoaded] = useFonts({
     Inter_900Black,
     Inter_500Medium,
@@ -81,8 +78,10 @@ export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cvesData, setCvesData] = useState<YearData[]>([]);
-  const [yearFilters, setYearFilters] = useState<{id: string, label: string}[]>([]);
-  
+  const [yearFilters, setYearFilters] = useState<
+    { id: string; label: string }[]
+  >([]);
+
   // Generate an array of years from 2015 to current year
   const getAllYears = useCallback(() => {
     const currentYear = new Date().getFullYear();
@@ -104,7 +103,7 @@ export default function Index() {
         publisheddate: `${year}-01-01`,
         source: "Unknown Source",
         summary: "No summary available",
-        updateddate: `${year}-01-01`
+        updateddate: `${year}-01-01`,
       };
     }
 
@@ -139,7 +138,7 @@ export default function Index() {
       publisheddate: publishedDate,
       source: rawCVE.source || "Unknown Source",
       summary: rawCVE.summary || "No summary available",
-      updateddate: updatedDate
+      updateddate: updatedDate,
     };
   }, []);
 
@@ -149,74 +148,89 @@ export default function Index() {
       const years = getAllYears();
       const newCvesData: YearData[] = [];
       let allFormattedCVEs: CVE[] = [];
-      
+
       // Show loading state
       setIsLoading(true);
-      
-      for (const year of years) {
-        console.log(`Fetching data for year ${year}...`);
-        try {
-          const response = await fetch(`https://acs-hackathon-backend.onrender.com/scrape-by-date/${year}`,{
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-            },
 
-          });
+      for (const year of years) {
+        // console.log(`Fetching data for year ${year}...`);
+        try {
+          const response = await fetch(
+            `https://acs-hackathon-backend.onrender.com/scrape-by-date/${year}`,
+            {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              },
+            }
+          );
           if (!response.ok) {
             throw new Error(`HTTP error ${response.status}`);
           }
-          
+
           const data = await response.json();
-          console.log(data);
+          // console.log(data);
           let processedData: RawCVE[] = [];
-          
+
           // Handle different possible data structures
-          if (typeof data === 'object' && !Array.isArray(data) && data !== null) {
+          if (
+            typeof data === "object" &&
+            !Array.isArray(data) &&
+            data !== null
+          ) {
             // Handle object format (like the 2025 data with numeric keys)
-            processedData = Object.values(data).map(cve => {
-              // Handle both possible formats
-              if (typeof cve === 'object' && cve !== null) {
-                if ('cveid' in cve) {
-                  // Format as seen in 2025 data
-                  return {
-                    id: cve.cveid,
-                    epssscore: cve.epssscore,
-                    cvss: cve.maxcvss,
-                    published: cve.publisheddate,
-                    source: cve.source,
-                    summary: cve.summary,
-                    lastModified: cve.updateddate
-                  };
-                } else {
-                  // Standard raw API format
-                  return cve as RawCVE;
+            processedData = Object.values(data)
+              .map((cve: any) => {
+                // Handle both possible formats
+                if (typeof cve === "object" && cve !== null) {
+                  if ("cveid" in cve) {
+                    // Format as seen in 2025 data
+                    return {
+                      id: cve.cveid,
+                      epssscore: cve.epssscore,
+                      cvss: cve.maxcvss,
+                      published: cve.publisheddate,
+                      source: cve.source,
+                      summary: cve.summary,
+                      lastModified: cve.updateddate,
+                    };
+                  } else {
+                    // Standard raw API format
+                    return cve as RawCVE;
+                  }
                 }
-              }
-              return null;
-            }).filter(Boolean) as RawCVE[];
+                return null;
+              })
+              .filter(Boolean) as RawCVE[];
           } else if (Array.isArray(data)) {
             // If data is already an array
             processedData = data;
           } else {
             // Fallback for unexpected formats
-            console.warn(`Unexpected data format for year ${year}:`, typeof data);
+            console.warn(
+              `Unexpected data format for year ${year}:`,
+              typeof data
+            );
             processedData = [];
           }
-          
+
           // Store the processed data
           if (processedData.length > 0) {
             newCvesData.push({
               year,
-              data: processedData
+              data: processedData,
             });
-            
+
             // Convert to standardized CVE format
-            const formattedCVEs = processedData.map(cve => convertRawCVE(cve, year));
+            const formattedCVEs = processedData.map((cve) =>
+              convertRawCVE(cve, year)
+            );
             allFormattedCVEs = [...allFormattedCVEs, ...formattedCVEs];
-            
-            console.log(`Successfully fetched data for year ${year}. Items: ${processedData.length}`);
+
+            // console.log(
+            //   `Successfully fetched data for year ${year}. Items: ${processedData.length}`
+            // );
           } else {
             console.log(`No data found for year ${year}`);
           }
@@ -225,29 +239,29 @@ export default function Index() {
           // Continue with other years even if one fails
         }
       }
-      
+
       // Update the full years data
       setCvesData(newCvesData);
-      console.log(`Total years data collected: ${newCvesData.length}`);
-      
+      // console.log(`Total years data collected: ${newCvesData.length}`);
+
       // Update the filter options with all years that have data
-      const yearsWithData = newCvesData.map(yd => yd.year);
+      const yearsWithData = newCvesData.map((yd) => yd.year);
       const allYears = ["all", ...yearsWithData];
-      const newFilters = allYears.map(year => ({
+      const newFilters = allYears.map((year) => ({
         id: year,
-        label: year === "all" ? "All Years" : year
+        label: year === "all" ? "All Years" : year,
       }));
       setYearFilters(newFilters);
-      
+
       // Update the combined CVEs list
       if (allFormattedCVEs.length > 0) {
         setCves(allFormattedCVEs);
-        console.log(`Total CVEs loaded: ${allFormattedCVEs.length}`);
+        // console.log(`Total CVEs loaded: ${allFormattedCVEs.length}`);
       } else {
         // If no data was found, use a fallback message
         setError("No vulnerability data found for any year");
       }
-      
+
       setIsLoading(false);
     } catch (error) {
       console.error("Error in fetchYearData:", error);
@@ -261,15 +275,15 @@ export default function Index() {
     // Initialize with empty array instead of sample data
     setCves([]);
     setError(null);
-    
+
     // Initialize year filters with all years from 2015 to present
     const years = getAllYears();
-    const initialFilters = ["all", ...years].map(year => ({
+    const initialFilters = ["all", ...years].map((year) => ({
       id: year,
-      label: year === "all" ? "All Years" : year
+      label: year === "all" ? "All Years" : year,
     }));
     setYearFilters(initialFilters);
-    
+
     // Fetch data for all years
     fetchYearData();
   }, [fetchYearData, getAllYears]);
@@ -302,7 +316,7 @@ export default function Index() {
   }, [yearFilters, activeFilter]);
 
   // Handle scroll event to update active index
-  const handleScroll = useCallback((event) => {
+  const handleScroll = useCallback((event: any) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / width);
     setActiveIndex(index);
@@ -314,7 +328,7 @@ export default function Index() {
   }, [dropdownVisible]);
 
   // Select filter from dropdown
-  const selectFilter = useCallback((filterId) => {
+  const selectFilter = useCallback((filterId: any) => {
     setActiveFilter(filterId);
     setDropdownVisible(false);
   }, []);
@@ -325,10 +339,10 @@ export default function Index() {
 
   if (isLoading) {
     return (
-    <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6722A8" />
         <Text style={styles.loadingText}>Loading vulnerability data...</Text>
-        <StatusBar style="auto" />
+        <StatusBar barStyle="default" />
       </SafeAreaView>
     );
   }
@@ -362,7 +376,7 @@ export default function Index() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.text}>Welcome, johndoe</Text>
+            <Text style={styles.text}>Welcome, {username}</Text>
             <Text style={styles.text1}>
               This is your weekly report for the publicly listed vulnerabilities
             </Text>
@@ -423,9 +437,9 @@ export default function Index() {
         </View>
         {/* Pass both the formatted CVEs and the raw year data to the graph components */}
         <NoOfCVEByYearGraph cves={cves} yearsData={cvesData} />
-        <VulnerabilitiesByTypeChart cves={cves} yearsData={cvesData} />
-        <VulnerabilitiesByTypeAndYearChart cves={cves} yearsData={cvesData} />
-        <VulnerabilityTable  />
+        <VulnerabilitiesByTypeChart cves={cves} />
+        <VulnerabilitiesByTypeAndYearChart cves={cves} />
+        <VulnerabilityTable />
         {/* Add additional padding at the bottom for better scrolling experience */}
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -492,14 +506,14 @@ export default function Index() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#111',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#111",
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#eee',
+    color: "#eee",
   },
   safeArea: {
     flex: 1,

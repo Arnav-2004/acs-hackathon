@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,41 +10,102 @@ import {
   TextInput,
   Modal,
   TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pencil } from "lucide-react-native";
+import { LogOut, Pencil } from "lucide-react-native";
 import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
+import useAuthStore from "@/utils/store";
+import { Redirect } from "expo-router";
+import axios from "axios";
 
 const ProfileScreen = () => {
+  const {
+    username,
+    email,
+    password,
+    logout,
+    updateEmail,
+    updatePassword,
+    updateUsername,
+  } = useAuthStore();
+
   const [userData, setUserData] = useState({
-    username: "johndoe",
-    email: "john.doe@example.com",
-    password: "March 2023",
+    username: username ?? "",
+    email: email ?? "",
+    password: password ?? "",
   });
 
   // State for edit modal
   const [isEditing, setIsEditing] = useState(false);
   const [editField, setEditField] = useState("");
   const [editValue, setEditValue] = useState("");
+  const [tempEditValue, setTempEditValue] = useState(""); // Added for better control
 
   const profileImageUrl = "https://github.com/shadcn.png";
 
+  // Update userData if store values change
+  useEffect(() => {
+    setUserData({
+      username: username ?? "",
+      email: email ?? "",
+      password: password ?? "",
+    });
+  }, [username, email, password]);
+
   const handleEdit = (field: keyof typeof userData) => {
+    const currentValue = userData[field] || "";
     setEditField(field);
-    setEditValue(userData[field]);
+    setEditValue(currentValue);
+    setTempEditValue(currentValue);
     setIsEditing(true);
   };
 
-  const saveEdit = () => {
-    setUserData({
-      ...userData,
-      [editField]: editValue,
-    });
-    setIsEditing(false);
+  const handleChangeText = (text: string) => {
+    setTempEditValue(text);
+  };
+
+  const saveEdit = async () => {
+    try {
+      // First update local state to provide immediate feedback
+      setUserData((prevData) => ({
+        ...prevData,
+        [editField]: tempEditValue,
+      }));
+
+      // Close the modal
+      setIsEditing(false);
+
+      // Then make the API call
+      await axios.put(
+        "https://acs-hackathon-backend.onrender.com/update-user",
+        {
+          username: userData.username,
+          [`new_${editField}`]: tempEditValue,
+        }
+      );
+
+      // Update the global store
+      if (editField === "username") {
+        updateUsername(tempEditValue);
+      } else if (editField === "email") {
+        updateEmail(tempEditValue);
+      } else if (editField === "password") {
+        updatePassword(tempEditValue);
+      }
+    } catch (error) {
+      console.error("Error updating user data:", error);
+      // Revert to previous state if API call fails
+      setUserData((prevData) => ({
+        ...prevData,
+        [editField]: editValue,
+      }));
+    }
   };
 
   const cancelEdit = () => {
     setIsEditing(false);
+    setTempEditValue("");
   };
 
   return (
@@ -83,9 +144,7 @@ const ProfileScreen = () => {
                 style={styles.editIcon}
                 onPress={() => handleEdit("username")}
               >
-                <Text>
-                  <Pencil color={"white"} size={50} />
-                </Text>
+                <Pencil color={"white"} size={20} />
               </TouchableOpacity>
             </View>
           </LinearGradient>
@@ -105,9 +164,7 @@ const ProfileScreen = () => {
                 style={styles.editIcon}
                 onPress={() => handleEdit("email")}
               >
-                <Text>
-                  <Pencil color={"white"} size={50} />
-                </Text>
+                <Pencil color={"white"} size={20} />
               </TouchableOpacity>
             </View>
           </LinearGradient>
@@ -122,21 +179,22 @@ const ProfileScreen = () => {
               <View>
                 <Text style={styles.infoLabel}>Password</Text>
                 <Text style={styles.infoValue}>
-                  {"•".repeat(userData.password.length)}
+                  {"•".repeat(userData?.password?.length || 0)}
                 </Text>
               </View>
               <TouchableOpacity
                 style={styles.editIcon}
                 onPress={() => handleEdit("password")}
               >
-                <Text>
-                  <Pencil color={"white"} size={50} />
-                </Text>
+                <Pencil color={"white"} size={20} />
               </TouchableOpacity>
             </View>
           </LinearGradient>
 
-          <TouchableOpacity style={styles.logoutButton}>
+          <TouchableOpacity
+            onPress={() => logout()}
+            style={styles.logoutButton}
+          >
             <Text style={styles.logoutButtonText}>Log Out</Text>
           </TouchableOpacity>
         </View>
@@ -149,45 +207,54 @@ const ProfileScreen = () => {
         animationType="fade"
         onRequestClose={cancelEdit}
       >
-        <TouchableWithoutFeedback onPress={cancelEdit}>
+        <TouchableWithoutFeedback
+          onPress={() => {
+            Keyboard.dismiss();
+            cancelEdit();
+          }}
+        >
           <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>
-                  Edit {editField === "username" ? "Username" : "Email"}
-                </Text>
+            <View
+              style={styles.modalContent}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={styles.modalTitle}>Edit {editField}</Text>
 
-                <TextInput
-                  style={styles.input}
-                  value={editValue}
-                  onChangeText={setEditValue}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  placeholderTextColor="#AAAAAA"
-                  secureTextEntry={editField === "password"}
-                />
+              <TextInput
+                style={styles.input}
+                value={tempEditValue}
+                onChangeText={handleChangeText}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType={
+                  editField === "email" ? "email-address" : "default"
+                }
+                secureTextEntry={editField === "password"}
+                placeholderTextColor="#AAAAAA"
+                autoFocus
+                selectionColor="#A64AFF"
+              />
 
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.cancelButton]}
-                    onPress={cancelEdit}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={cancelEdit}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.saveButton]}
-                    onPress={saveEdit}
-                  >
-                    <Text style={styles.saveButtonText}>Save</Text>
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={saveEdit}
+                >
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
               </View>
-            </TouchableWithoutFeedback>
+            </View>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-      <FixedNavigationBar  />
+      <FixedNavigationBar />
     </SafeAreaView>
   );
 };
@@ -275,7 +342,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(166, 74, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 10,
   },
   settingCard: {
     backgroundColor: "#1E1E1E",
@@ -342,6 +408,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
+    textTransform: "capitalize",
   },
   input: {
     backgroundColor: "#2A2A2A",
