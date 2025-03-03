@@ -3,7 +3,9 @@ import React, { useState } from "react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import InputField from "@/components/auth/InputField";
 import AuthButton from "@/components/auth/AuthButton";
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
+import useAuthStore from "@/utils/store";
+import axios from "axios";
 
 const LoginScreen = () => {
   const [email, setEmail] = useState("");
@@ -11,6 +13,8 @@ const LoginScreen = () => {
   const [loading, setLoading] = useState(false);
 
   const [errors, setErrors] = useState({ email: "", password: "" });
+
+  const { login } = useAuthStore();
 
   const validateForm = () => {
     const newErrors = { email: "", password: "" };
@@ -34,10 +38,23 @@ const LoginScreen = () => {
 
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
-      alert("Login successful!");
-    }, 1500);
+    axios
+      .post("https://acs-hackathon-backend.onrender.com/login", {
+        email,
+        password,
+      })
+      .then((response) => {
+        login(response.data.username, email, password);
+        setLoading(false);
+        return <Redirect href="/" />;
+      })
+      .catch((error) => {
+        setLoading(false);
+        setErrors({
+          email: "Invalid credentials",
+          password: "Invalid credentials",
+        });
+      });
   };
 
   return (
