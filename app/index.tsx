@@ -21,12 +21,12 @@ import {
 } from "@expo-google-fonts/inter";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { IconsUser } from "./components/IconUser";
-import JobCard from "./components/card";
-import { NoOfCVEByYearGraph } from "./components/NoOfCVEByYearGraph";
-import { VulnerabilitiesByTypeChart } from "./components/VulneranbilitiesByTypeChartPie";
-import { VulnerabilitiesByTypeAndYearChart } from "./components/VulnerabilitiesByTypeAndYear";
-import { VulnerabilityTables } from "./components/VulnerabilityTable";
+import { IconsUser } from "@/components/dashboard/IconUser";
+import JobCard from "@/components/dashboard/card";
+import { NoOfCVEByYearGraph } from "@/components/dashboard/NoOfCVEByYearGraph";
+import { VulnerabilitiesByTypeChart } from "@/components/dashboard/VulneranbilitiesByTypeChartPie";
+import { VulnerabilitiesByTypeAndYearChart } from "@/components/dashboard/VulnerabilitiesByTypeAndYear";
+import { VulnerabilityTables } from "@/components/dashboard/VulnerabilityTable";
 
 const { width, height } = Dimensions.get("window");
 
@@ -152,7 +152,7 @@ export default function Index() {
     });
 
     // Convert to array and sort
-    const yearFilters = Array.from(years).sort((a, b) => {
+    const yearFilters = Array.from(years).sort((a: any, b: any) => {
       if (a === "all") return -1; // "All" should be first
       if (b === "all") return 1;
       return b.localeCompare(a); // Most recent years first
@@ -177,13 +177,13 @@ export default function Index() {
   }, [cves, activeFilter]);
 
   // Get display name for active filter
-  const getActiveFilterLabel = useCallback(() => {
+  const getActiveFilterLabel: any = useCallback(() => {
     const filter = filterOptions.find((item) => item.id === activeFilter);
     return filter ? filter.label : "All Years";
   }, [filterOptions, activeFilter]);
 
   // Handle scroll event to update active index
-  const handleScroll = useCallback((event) => {
+  const handleScroll = useCallback((event: any) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / width);
     setActiveIndex(index);
@@ -195,7 +195,7 @@ export default function Index() {
   }, [dropdownVisible]);
 
   // Select filter from dropdown
-  const selectFilter = useCallback((filterId) => {
+  const selectFilter = useCallback((filterId: any) => {
     setActiveFilter(filterId);
     setDropdownVisible(false);
   }, []);
@@ -330,7 +330,7 @@ export default function Index() {
             ]}
           >
             <ScrollView>
-              {filterOptions.map((item) => (
+              {filterOptions.map((item: any) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[

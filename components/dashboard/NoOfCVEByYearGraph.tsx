@@ -1,5 +1,5 @@
 import { BarChart } from "react-native-chart-kit";
-import { View, Text, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, Dimensions, StyleSheet } from "react-native";
 
 // Define the prop types for the component
 interface NoOfCVEByYearGraphProps {
@@ -14,24 +14,24 @@ interface NoOfCVEByYearGraphProps {
 export function NoOfCVEByYearGraph({ cves = [] }: NoOfCVEByYearGraphProps) {
   // Process CVE data to count by year
   const countCVEsByYear = () => {
-    const yearCounts = {};
-    
+    const yearCounts: { [key: string]: number } = {};
+
     // Count CVEs by year
-    cves.forEach(cve => {
-      const year = cve.publisheddate.split('-')[0];
+    cves.forEach((cve) => {
+      const year = cve.publisheddate.split("-")[0];
       yearCounts[year] = (yearCounts[year] || 0) + 1;
     });
-    
+
     // Sort years in ascending order
     const sortedYears = Object.keys(yearCounts).sort();
-    
+
     return {
       labels: sortedYears,
       datasets: [
         {
-          data: sortedYears.map(year => yearCounts[year])
-        }
-      ]
+          data: sortedYears.map((year) => yearCounts[year]),
+        },
+      ],
     };
   };
 
@@ -52,7 +52,7 @@ export function NoOfCVEByYearGraph({ cves = [] }: NoOfCVEByYearGraphProps) {
       <Text style={styles.title}>CVEs by Year</Text>
       <BarChart
         data={data}
-        width={width - 80 }
+        width={width - 80}
         height={220}
         yAxisLabel=""
         yAxisSuffix=""
@@ -91,12 +91,12 @@ const styles = StyleSheet.create({
   chart: {
     marginVertical: 8,
     borderRadius: 10,
-    padding:10,
+    padding: 10,
     marginLeft: 10,
   },
   emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     height: 220,
     marginHorizontal: 20,
     backgroundColor: "rgba(255, 255, 255, 0.05)",
@@ -106,5 +106,5 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.5)",
     fontFamily: "Inter_500Medium",
     fontSize: 16,
-  }
+  },
 });
