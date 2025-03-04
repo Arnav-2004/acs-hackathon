@@ -3,7 +3,9 @@ import React, { useState } from "react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import AuthButton from "@/components/auth/AuthButton";
 import InputField from "@/components/auth/InputField";
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
+import useAuthStore from "@/utils/store";
+import axios from "axios";
 
 const SignUpScreen = () => {
   const [userName, setUserName] = useState("");
@@ -11,6 +13,8 @@ const SignUpScreen = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { login } = useAuthStore();
 
   const [errors, setErrors] = useState({
     userName: "",
@@ -61,10 +65,21 @@ const SignUpScreen = () => {
 
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
-      alert("Account created successfully!");
-    }, 1500);
+    axios
+      .post("https://acs-hackathon-backend.onrender.com/signup", {
+        username: userName,
+        email,
+        password,
+      })
+      .then((response) => {
+        login(userName, email, password);
+        setLoading(false);
+        return <Redirect href="/" />;
+      })
+      .catch((error) => {
+        setLoading(false);
+        alert("Some error occurred. Please try again.");
+      });
   };
 
   return (
