@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,6 @@ import { Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
 
 // KEV Filter component to be added to the dashboard
 const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
-  console.log("KEVFilter rendered with activeFilter:", activeFilter, "type:", typeof activeFilter);
-
   const showMessage = (message) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
@@ -32,29 +30,8 @@ const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
   const [error, setError] = useState(null);
   const [kevFilterApplied, setKevFilterApplied] = useState(false);
 
-  // Fetch KEV dates when year is selected (not "all")
-  useEffect(() => {
-    const activeFilterStr = String(activeFilter);
-    console.log("useEffect triggered with activeFilter:", activeFilterStr);
-
-    if (activeFilterStr !== "all") {
-      fetchKEVDates(activeFilterStr);
-      // Reset KEV filter when year changes
-      setSelectedKEVDate(null);
-      setKevFilterApplied(false);
-      // Ensure original filtered CVEs are displayed
-      onApplyKEVFilter(null);
-    } else {
-      // Reset when "All Years" is selected
-      setKevDates([]);
-      setSelectedKEVDate(null);
-      setKevFilterApplied(false);
-      onApplyKEVFilter(null);
-    }
-  }, [activeFilter, onApplyKEVFilter]);
-
-  // Fetch KEV dates from the API
-  const fetchKEVDates = async (year) => {
+  // Improved fetchKEVDates function with better error handling and fallback
+  const fetchKEVDates = useCallback(async (year) => {
     if (!year || year === "all") return;
 
     console.log("Fetching KEV dates for year:", year);
@@ -62,42 +39,120 @@ const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
     setError(null);
 
     try {
-      const response = await fetch(`https://acs-hackathon-backend.onrender.com/scrape-known-exploited/${year}`);
+      // Log the full URL being called
+      const url = `https://acs-hackathon-backend.onrender.com/scrape-known-exploited/${year}`;
+      console.log("API URL:", url);
+      
+      const response = await fetch(url);
+      console.log("Response status:", response.status);
 
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log(data);
-      console.log(`Received KEV data for ${year}:`, data ? data.length : 0, "items");
-
+      // Log raw response for debugging
+      const rawText = await response.text();
+      console.log("Raw response preview:", rawText.substring(0, 200) + (rawText.length > 200 ? "..." : ""));
+      
+      // Try to parse as JSON
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError);
+        throw new Error(`Failed to parse response as JSON: ${parseError.message}`);
+      }
+      
+      console.log("Data type:", typeof data, "Array?", Array.isArray(data), "Length:", Array.isArray(data) ? data.length : 'N/A');
+      
       // Extract unique dates from the response
       let dates = [];
-      if (data && Array.isArray(data)) {
+      if (data) {
         const uniqueDates = new Set();
-        data.forEach(item => {
-          if (item.cisakevadded) {
-            uniqueDates.add(item.cisakevadded); // Collect unique KEV dates
-          }
-        });
+        
+        // Handle both array and object responses
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            if (item.cisakevadded) {
+              uniqueDates.add(item.cisakevadded);
+            }
+          });
+        } else {
+          // Handle object format (convert to array of values)
+          Object.values(data).forEach(item => {
+            if (item.cisakevadded) {
+              uniqueDates.add(item.cisakevadded);
+            }
+          });
+        }
+        
         dates = Array.from(uniqueDates).sort((a, b) => new Date(b) - new Date(a)); // Sort newest first
       }
 
       setKevDates(dates);
-      console.log(`Found ${dates.length} unique KEV dates`);
+      console.log(`Found ${dates.length} unique KEV dates from API`);
 
       if (dates.length === 0) {
-        showMessage(`No KEV data found for ${year}`);
+        // Try to use filteredCVEs as fallback
+        useLocalDataFallback();
       }
     } catch (error) {
       console.error("Error fetching KEV dates:", error);
       setError(`Failed to load KEV data: ${error.message}`);
-      showMessage(`Error loading KEV data for ${year}`);
+      
+      // Try to use filteredCVEs as fallback on error
+      useLocalDataFallback();
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filteredCVEs]);
+
+  // Helper function to use local data as fallback
+  const useLocalDataFallback = useCallback(() => {
+    if (filteredCVEs && filteredCVEs.length > 0) {
+      console.log("Using local data as fallback...");
+      const uniqueDatesFallback = new Set();
+      filteredCVEs.forEach(item => {
+        if (item.cisakevadded) {
+          uniqueDatesFallback.add(item.cisakevadded);
+        }
+      });
+      const fallbackDates = Array.from(uniqueDatesFallback).sort((a, b) => new Date(b) - new Date(a));
+      setKevDates(fallbackDates);
+      console.log(`Found ${fallbackDates.length} unique KEV dates from local data`);
+      
+      if (fallbackDates.length > 0) {
+        setError(null); // Clear error since we have fallback data
+      } else {
+        const yearStr = activeFilter ? String(activeFilter) : "selected year";
+        showMessage(`No KEV data found for ${yearStr}`);
+      }
+    } else {
+      const yearStr = activeFilter ? String(activeFilter) : "selected year";
+      showMessage(`No KEV data available for ${yearStr}`);
+    }
+  }, [filteredCVEs, activeFilter, showMessage]);
+
+  // Reset filter function
+  const resetKEVFilter = useCallback(() => {
+    setSelectedKEVDate(null);
+    setKevFilterApplied(false);
+    onApplyKEVFilter(null);
+  }, [onApplyKEVFilter]);
+
+  // Fetch KEV dates when year is selected (not "all")
+  useEffect(() => {
+    const activeFilterStr = String(activeFilter);
+    
+    if (activeFilterStr !== "all") {
+      fetchKEVDates(activeFilterStr);
+      resetKEVFilter();
+    } else {
+      // Reset when "All Years" is selected
+      setKevDates([]);
+      resetKEVFilter();
+    }
+  }, [activeFilter, fetchKEVDates, resetKEVFilter]);
 
   const selectKEVDate = (date) => {
     setSelectedKEVDate(date);
@@ -106,28 +161,34 @@ const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
     // Filter CVEs based on an exact match to the selected KEV date
     const filtered = filteredCVEs.filter(cve => cve.cisakevadded === date);
     onApplyKEVFilter(filtered);
+    
+    // Log the results for debugging
+    console.log(`Selected KEV date: ${date}, Found ${filtered.length} matching CVEs`);
 
     setShowKEVDropdown(false);
   };
 
   const clearKEVFilter = () => {
-    setSelectedKEVDate(null);
-    setKevFilterApplied(false);
-    onApplyKEVFilter(null);
+    resetKEVFilter();
+    console.log("KEV filter cleared");
   };
 
   const formatDate = (date) => {
-    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-    return new Date(date).toLocaleDateString(undefined, options);
+    if (!date) return "";
+    
+    try {
+      const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+      return new Date(date).toLocaleDateString(undefined, options);
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return date; // Return the original string if parsing fails
+    }
   };
 
-  // Conditional rendering for the KEV filter
+  // Early return if activeFilter is "all"
   if (String(activeFilter) === "all") {
-    console.log("KEVFilter hidden because activeFilter is 'all'");
     return null;
   }
-
-  console.log("KEVFilter will be displayed with kevDates.length:", kevDates.length);
 
   return (
     <View style={styles.container}>
@@ -181,8 +242,8 @@ const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
               accessibilityLabel="Close KEV date dropdown"
               accessibilityRole="button"
             >
-              <View style={styles.kevDropdownMenu}>
-                <ScrollView>
+              <View style={[styles.kevDropdownMenu, { marginHorizontal: 16 }]}>
+                <ScrollView style={{ maxHeight: 200 }}>
                   {kevDates.map((date) => (
                     <TouchableOpacity
                       key={date}
@@ -214,7 +275,6 @@ const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
   );
 };
 
-// Keep existing styles and add this new style
 const styles = StyleSheet.create({
   container: {
     marginBottom: 10,
@@ -243,15 +303,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: 'rgba(103, 34, 168, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    padding: 20,
     borderRadius: 8,
     flex: 1,
   },
   kevFilterText: {
     color: '#eee',
     fontFamily: 'Inter_500Medium',
-    fontSize: 13,
+    fontSize: 15,
   },
   kevDropdownIcon: {
     color: '#eee',
@@ -275,13 +334,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    paddingTop: 50,
   },
   kevDropdownMenu: {
-    position: 'absolute',
-    top: 40, // Position it below the filter button
-    left: 0,
-    right: 0,
-    maxHeight: 200,
     backgroundColor: '#222',
     borderRadius: 8,
     overflow: 'hidden',
@@ -289,8 +345,7 @@ const styles = StyleSheet.create({
     zIndex: 2000,
   },
   kevDropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
@@ -323,4 +378,3 @@ const styles = StyleSheet.create({
 });
 
 export default KEVFilter;
-    
