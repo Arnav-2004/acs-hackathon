@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, X, ArrowRight } from "lucide-react-native";
 import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
+import axios from "axios";
 
 // Define option type for type safety
 type AnalysisOption = string;
@@ -70,40 +71,40 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
   };
 
   // Form submission handler
-  const handleSubmit = (): void => {
-    Animated.sequence([
-      Animated.timing(buttonScale, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(buttonScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-    const response = fetch("https://acs-hackathon-backend.onrender.com/generate-insights/",{
+  // Fix for the handleSubmit function in your create.tsx file
+const handleSubmit = async (): Promise<void> => {
+  Animated.sequence([
+    Animated.timing(buttonScale, {
+      toValue: 0.95,
+      duration: 100,
+      useNativeDriver: true,
+    }),
+    Animated.timing(buttonScale, {
+      toValue: 1,
+      duration: 100,
+      useNativeDriver: true,
+    }),
+  ]).start();
+  
+  try {
+    // Use the actual website URL from the input field instead of hardcoded URL
+    const response = await fetch("https://acs-hackathon-backend.onrender.com/generate-insights/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        websiteUrl,
+      body: JSON.stringify({ 
+        url: websiteUrl,
       }),
-    })
-    .then((response) => response.json())
-    .then((data) => {
-      console.log("Success:", data);
-    })
-    .catch((error) => {
-      console.error("Error:", error);
     });
-    Keyboard.dismiss();
-    // Implementation for form submission
-    console.log("Website URL:", websiteUrl);
-    console.log("Selected options:", selectedOptions);
-  };
+    console.log(response)
+  } catch (error) {
+    console.error("Fetch error:", error);
+    // Add error handling UI feedback
+  }
+  
+  Keyboard.dismiss();
+};
 
   return (
     <View style={styles.container}>
