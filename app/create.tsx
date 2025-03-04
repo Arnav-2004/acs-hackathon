@@ -8,22 +8,29 @@ import {
   StyleSheet,
   Animated,
   Keyboard,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Link, X, ArrowRight } from "lucide-react-native";
+import { Link, X, ArrowRight, ChevronLeft } from "lucide-react-native";
 import axios from "axios";
+import { useNavigation } from "expo-router";
+import ResponseModal from "@/components/create/responseModal";
+import {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
-// Define option type for type safety
 type AnalysisOption = string;
 
-// Define the list of available options
 const OPTIONS: AnalysisOption[] = [
-  "ASN",
   "HTTP Header",
+  "Find Directories",
+  "Exposed JS Files",
+  "ASN",
   "Find Subdomain",
   "Find Web Technology",
   "Find Admin Panel",
-  "Find Directories",
   "Whois Information",
   "Port Scan",
   "TCP Scan",
@@ -37,24 +44,26 @@ const OPTIONS: AnalysisOption[] = [
   "Trace Route",
   "Firewall Detect",
   "Vulnerability Scan",
-  "Zone Transfer",
 ];
 
-// Define component props if needed in the future
 interface WebsiteAnalyzerScreenProps {
   // Add props as needed
 }
 
 // Main component
 const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
-  // State management with TypeScript types
+  const navigation = useNavigation();
+
   const [websiteUrl, setWebsiteUrl] = useState<string>("");
   const [selectedOptions, setSelectedOptions] = useState<AnalysisOption[]>([]);
   const [showError, setShowError] = useState<boolean>(false);
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const buttonScale = useRef<Animated.Value>(new Animated.Value(1)).current;
 
-  // Handler for option selection with type safety
+  const [loading, setLoading] = useState<boolean>(false);
+  const [responseContent, setResponseContent] = useState<string>("");
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+
   const handleOptionSelect = (option: AnalysisOption): void => {
     if (selectedOptions.includes(option)) {
       setSelectedOptions(selectedOptions.filter((item) => item !== option));
@@ -68,6 +77,7 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
 
   // Form submission handler
   const handleSubmit = async () => {
+    setLoading(true);
     Animated.sequence([
       Animated.timing(buttonScale, {
         toValue: 0.95,
@@ -84,27 +94,69 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
     axios
       .post("https://acs-hackathon-backend.onrender.com/generate-insights", {
         url: websiteUrl,
+        options: selectedOptions,
       })
       .then((response) => {
-        console.log(response.data);
+        if (response.data && response.data.insights) {
+          console.log(response.data.insights);
+          setResponseContent(response.data.insights);
+          setLoading(false);
+          setModalVisible(true);
+        }
       })
       .catch((error) => {
         console.error(error);
+        setResponseContent(
+          "An error occurred while analyzing the website. Please try again."
+        );
+        setLoading(false);
+        setModalVisible(true);
       });
 
     Keyboard.dismiss();
-    // Implementation for form submission
     console.log("Website URL:", websiteUrl);
     console.log("Selected options:", selectedOptions);
+  };
+
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.98);
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1);
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Website Analyzer</Text>
-        <Text style={styles.subtitle}>
-          Analyze any website with custom parameters
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{
+              marginRight: 13,
+              padding: 5,
+              borderRadius: 50,
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            <ChevronLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.title}>Website Analyzer</Text>
+
+            <Text style={styles.subtitle}>
+              Analyze any website with custom parameters
+            </Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.inputContainer}>
@@ -201,11 +253,12 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
         <TouchableOpacity
           style={[
             styles.analyzeButton,
-            (!websiteUrl || selectedOptions.length === 0) &&
+            (!websiteUrl || selectedOptions.length === 0 || loading) &&
               styles.analyzeButtonDisabled,
+            animatedStyle,
           ]}
           onPress={handleSubmit}
-          disabled={!websiteUrl || selectedOptions.length === 0}
+          disabled={!websiteUrl || selectedOptions.length === 0 || loading}
         >
           <LinearGradient
             colors={["#9370DB", "#8A2BE2"]}
@@ -213,11 +266,26 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           >
-            <Text style={styles.buttonText}>Analyze Website</Text>
+            {loading ? (
+              <ActivityIndicator
+                color="#fff"
+                size="small"
+                style={{ marginRight: 8 }}
+              />
+            ) : null}
+            <Text style={styles.buttonText}>
+              {loading ? "Analyzing..." : "Analyze Website"}
+            </Text>
             <ArrowRight size={20} color="#fff" />
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
+
+      <ResponseModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        content={responseContent}
+      />
     </View>
   );
 };
@@ -236,6 +304,9 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     color: "#fff",
+  },
+  buttonDisabled: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   subtitle: {
     fontSize: 16,
