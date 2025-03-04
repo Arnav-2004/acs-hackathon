@@ -59,8 +59,8 @@ const ResponseModal: React.FC<ResponseModalProps> = ({
     list_item: {
       color: "#fff",
       marginVertical: 4,
-      flexDirection: "row",
-      flexWrap: "wrap", // Ensure list items can wrap
+      flexDirection: "row" as "row",
+      flexWrap: "wrap" as "wrap", // Ensure list items can wrap
     },
     bullet_list: {
       marginLeft: 20,
@@ -97,7 +97,7 @@ const ResponseModal: React.FC<ResponseModalProps> = ({
       borderRadius: 8,
       fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
       marginVertical: 10,
-      overflow: "scroll", // Allow scrolling for long code blocks
+      overflow: "scroll" as "scroll", // Allow scrolling for long code blocks
     },
     blockquote: {
       backgroundColor: "rgba(147, 112, 219, 0.05)",
@@ -117,12 +117,12 @@ const ResponseModal: React.FC<ResponseModalProps> = ({
       borderColor: "rgba(255, 255, 255, 0.2)",
       borderRadius: 8,
       marginVertical: 10,
-      width: "100%", // Ensure tables take full width
+      width: Dimensions.get("window").width, // Ensure tables take full width
     },
     tr: {
       borderBottomWidth: 1,
       borderColor: "rgba(255, 255, 255, 0.1)",
-      flexDirection: "row",
+      flexDirection: "row" as "row",
     },
     th: {
       padding: 10,

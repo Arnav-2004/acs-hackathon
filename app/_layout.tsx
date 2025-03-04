@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import useAuthStore from "@/utils/store";
 import { Stack, useRouter } from "expo-router";
-import * as SplashScreen from 'expo-splash-screen'; // Import the splash screen API
+import * as SplashScreen from "expo-splash-screen"; // Import the splash screen API
 import SplashScreenComponent from "./splashScreen";
 
 export default function RootLayout() {
@@ -24,7 +24,8 @@ export default function RootLayout() {
 
   // Handle the authentication check
   useEffect(() => {
-    if (isReady) { // Only check authentication after splash screen is ready
+    if (isReady) {
+      // Only check authentication after splash screen is ready
       if (!isAuthenticated || !username) {
         router.replace("/login");
       } else {
@@ -35,9 +36,7 @@ export default function RootLayout() {
 
   if (!isReady) {
     // Optionally, render a custom splash screen component here
-    return (
-      <SplashScreenComponent />
-    );
+    return <SplashScreenComponent />;
   }
 
   return (

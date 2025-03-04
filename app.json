@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "acs-hackathon",
-    "slug": "acs-hackathon",
+    "name": "ShieldX",
+    "slug": "shieldX",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

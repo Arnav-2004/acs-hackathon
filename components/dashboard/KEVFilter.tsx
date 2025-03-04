@@ -14,8 +14,14 @@ import {
 import { Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
 
 // KEV Filter component to be added to the dashboard
-const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
-  const showMessage = (message) => {
+interface KEVFilterProps {
+  activeFilter: string | number;
+  filteredCVEs: Array<{ cisakevadded: string }>;
+  onApplyKEVFilter: (filtered: Array<{ cisakevadded: string }> | null) => void;
+}
+
+const KEVFilter: React.FC<KEVFilterProps> = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
+  const showMessage = (message:any) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
@@ -24,14 +30,14 @@ const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
   };
 
   const [showKEVDropdown, setShowKEVDropdown] = useState(false);
-  const [kevDates, setKevDates] = useState([]);
+  const [kevDates, setKevDates] = useState<string[]>([]);
   const [selectedKEVDate, setSelectedKEVDate] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [kevFilterApplied, setKevFilterApplied] = useState(false);
 
   // Improved fetchKEVDates function with better error handling and fallback
-  const fetchKEVDates = useCallback(async (year) => {
+  const fetchKEVDates = useCallback(async (year:any) => {
     if (!year || year === "all") return;
 
     console.log("Fetching KEV dates for year:", year);
@@ -60,33 +66,37 @@ const KEVFilter = ({ activeFilter, filteredCVEs, onApplyKEVFilter }) => {
         data = JSON.parse(rawText);
       } catch (parseError) {
         console.error("JSON parse error:", parseError);
-        throw new Error(`Failed to parse response as JSON: ${parseError.message}`);
+        if (parseError instanceof Error) {
+          throw new Error(`Failed to parse response as JSON: ${parseError.message}`);
+        } else {
+          throw new Error('Failed to parse response as JSON');
+        }
       }
       
       console.log("Data type:", typeof data, "Array?", Array.isArray(data), "Length:", Array.isArray(data) ? data.length : 'N/A');
       
       // Extract unique dates from the response
-      let dates = [];
+      let dates: string[] = [];
       if (data) {
         const uniqueDates = new Set();
         
         // Handle both array and object responses
         if (Array.isArray(data)) {
           data.forEach(item => {
-            if (item.cisakevadded) {
-              uniqueDates.add(item.cisakevadded);
+            if ((item as { cisakevadded: string }).cisakevadded) {
+              uniqueDates.add((item as { cisakevadded: string }).cisakevadded);
             }
           });
         } else {
           // Handle object format (convert to array of values)
           Object.values(data).forEach(item => {
-            if (item.cisakevadded) {
-              uniqueDates.add(item.cisakevadded);
+            if ((item as { cisakevadded: string }).cisakevadded) {
+              uniqueDates.add((item as { cisakevadded: string }).cisakevadded);
             }
           });
         }
         
-        dates = Array.from(uniqueDates).sort((a, b) => new Date(b) - new Date(a)); // Sort newest first
+        dates = Array.from(uniqueDates).map(date => String(date)).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()); // Sort newest first
       }
 
       setKevDates(dates);
