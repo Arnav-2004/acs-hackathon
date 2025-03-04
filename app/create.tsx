@@ -83,7 +83,22 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
         useNativeDriver: true,
       }),
     ]).start();
-
+    const response = fetch("https://acs-hackathon-backend.onrender.com/generate-insights/",{
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        websiteUrl,
+      }),
+    })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log("Success:", data);
+    })
+    .catch((error) => {
+      console.error("Error:", error);
+    });
     Keyboard.dismiss();
     // Implementation for form submission
     console.log("Website URL:", websiteUrl);
