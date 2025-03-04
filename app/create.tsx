@@ -8,39 +8,36 @@ import {
   StyleSheet,
   Animated,
   Keyboard,
-  ViewStyle,
-  TextStyle,
-  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, X, ArrowRight } from "lucide-react-native";
-import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
+import axios from "axios";
 
 // Define option type for type safety
 type AnalysisOption = string;
 
 // Define the list of available options
 const OPTIONS: AnalysisOption[] = [
-  "SEO Analysis",
-  "Page Speed",
-  "Mobile Responsiveness",
-  "Security Check",
-  "Accessibility",
-  "Meta Tags",
-  "Content Quality",
-  "Backlink Analysis",
-  "Social Media Integration",
-  "Schema Markup",
-  "Image Optimization",
-  "Browser Compatibility",
-  "JavaScript Errors",
-  "CSS Validation",
-  "HTML Validation",
-  "Broken Links",
-  "Core Web Vitals",
-  "HTTPS Status",
-  "Cookie Compliance",
-  "Server Response Time",
+  "ASN",
+  "HTTP Header",
+  "Find Subdomain",
+  "Find Web Technology",
+  "Find Admin Panel",
+  "Find Directories",
+  "Whois Information",
+  "Port Scan",
+  "TCP Scan",
+  "UDP Scan",
+  "External Links",
+  "Banner Grab",
+  "Subnet Lookup",
+  "Reverse IP Lookup",
+  "Geo-Location",
+  "DNS Lookup",
+  "Trace Route",
+  "Firewall Detect",
+  "Vulnerability Scan",
+  "Zone Transfer",
 ];
 
 // Define component props if needed in the future
@@ -70,7 +67,7 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
   };
 
   // Form submission handler
-  const handleSubmit = (): void => {
+  const handleSubmit = async () => {
     Animated.sequence([
       Animated.timing(buttonScale, {
         toValue: 0.95,
@@ -83,22 +80,18 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
         useNativeDriver: true,
       }),
     ]).start();
-    const response = fetch("https://acs-hackathon-backend.onrender.com/generate-insights/",{
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        websiteUrl,
-      }),
-    })
-    .then((response) => response.json())
-    .then((data) => {
-      console.log("Success:", data);
-    })
-    .catch((error) => {
-      console.error("Error:", error);
-    });
+
+    axios
+      .post("https://acs-hackathon-backend.onrender.com/generate-insights", {
+        url: websiteUrl,
+      })
+      .then((response) => {
+        console.log(response.data);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
     Keyboard.dismiss();
     // Implementation for form submission
     console.log("Website URL:", websiteUrl);
@@ -225,7 +218,6 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
-      <FixedNavigationBar />
     </View>
   );
 };
