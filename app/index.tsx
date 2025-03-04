@@ -43,7 +43,7 @@ import KEVFilter from "@/components/dashboard/KEVFilter";
 
 const { width, height } = Dimensions.get("window");
 
-// Type definitions for CVE dat
+// Type definitions for CVE data
 
 // Define an interface for raw API CVE data
 interface RawCVE {
@@ -96,82 +96,80 @@ export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cvesData, setCvesData] = useState<YearData[]>([]);
-  const [yearFilters, setYearFilters] = useState<
-    { id: string; label: string }[]
-  >([]);
-
-  const [yearFilters, setYearFilters] = useState<{id: string, label: string}[]>([]);
+  const [yearFilters, setYearFilters] = useState<{ id: string; label: string }[]>([]);
   const [loadingFromCache, setLoadingFromCache] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
-  const [kevFilteredCVEs, setKevFilteredCVEs] = useState<CVE[]>([]);
-  const [kevFilterDate, setKevFilterDate] = useState<string | null>(null);
-  
-  // Memoized filtered CVEs to prevent recalculation on each render
-  const filteredCVEs = useMemo(() => {
-    if (activeFilter === "all") {
-      return cves;
-    }
+ // Move the filteredCVEs memoization before the handleKEVFilter callback
+// This ensures filteredCVEs is defined when handleKEVFilter is created
 
-    return cves.filter((cve) => {
-      const year = cve.publisheddate.split("-")[0];
-      return year === activeFilter;
-    });
-  }, [cves, activeFilter]);
+const [kevFilteredCVEs, setKevFilteredCVEs] = useState<CVE[]>([]);
+const [kevFilterDate, setKevFilterDate] = useState<string | null>(null);
+
+// Memoized filtered CVEs to prevent recalculation on each render
+const filteredCVEs = useMemo(() => {
+  if (activeFilter === "all") {
+    return cves;
+  }
+
+  return cves.filter((cve) => {
+    const year = cve.publisheddate.split("-")[0];
+    return year === activeFilter;
+  });
+}, [cves, activeFilter]);
+
+// Handle KEV filter
+const handleKEVFilter = useCallback((kevDate: string | null) => {
+  setKevFilterDate(kevDate);
   
-  const handleKEVFilter = useCallback((kevDate: string | null) => {
-    setKevFilterDate(kevDate);
-    
-    if (!kevDate) {
-      // If no KEV date is selected, clear the KEV filter
-      setKevFilteredCVEs([]);
-      return;
-    }
-    
-    // Filter the CVEs that match the KEV date
-    // You'll need to call your API endpoint to get the CVE IDs for the selected KEV date
-    const fetchKEVCVEs = async () => {
-      try {
-        const response = await fetch(`https://acs-hackathon-backend.onrender.com/scrape-known-exploited/${activeFilter}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error ${response.status}`);
-        }
-        
-        const kevData = await response.json();
-        
-        // Extract CVE IDs that match the selected date
-        const matchingCVEIDs = kevData
-          .filter(item => item.cisakevadded === kevDate)
-          .map(item => item.cveid);
-        
-        // Filter the current filteredCVEs to only include those in the matching IDs
-        const matchingCVEs = filteredCVEs.filter(cve => 
-          matchingCVEIDs.includes(cve.cveid)
-        );
-        
-        setKevFilteredCVEs(matchingCVEs);
-        
-        // Log the results for debugging
-        console.log(`Found ${matchingCVEs.length} CVEs that match KEV date ${kevDate}`);
-      } catch (error) {
-        console.error("Error fetching KEV CVEs:", error);
-        // If there's an error, clear the filter
-        setKevFilteredCVEs([]);
+  if (!kevDate) {
+    // If no KEV date is selected, clear the KEV filter
+    setKevFilteredCVEs([]);
+    return;
+  }
+  
+  // Filter the CVEs that match the KEV date
+  // You'll need to call your API endpoint to get the CVE IDs for the selected KEV date
+  const fetchKEVCVEs = async () => {
+    try {
+      const response = await fetch(`https://acs-hackathon-backend.onrender.com/scrape-known-exploited/${activeFilter}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
       }
-    };
-    
-    fetchKEVCVEs();
-  }, [activeFilter, filteredCVEs]);
-  
-  // 4. Modify the displayCVEs variable to use the KEVFilter results when available
-  const displayCVEs = useMemo(() => {
-    if (kevFilterDate && kevFilteredCVEs.length > 0) {
-      return kevFilteredCVEs;
+      
+      const kevData = await response.json();
+      
+      // Extract CVE IDs that match the selected date
+      const matchingCVEIDs = kevData
+        .filter(item => item.cisakevadded === kevDate)
+        .map(item => item.cveid);
+      
+      // Filter the current filteredCVEs to only include those in the matching IDs
+      const matchingCVEs = filteredCVEs.filter(cve => 
+        matchingCVEIDs.includes(cve.cveid)
+      );
+      
+      setKevFilteredCVEs(matchingCVEs);
+      
+      // Log the results for debugging
+      console.log(`Found ${matchingCVEs.length} CVEs that match KEV date ${kevDate}`);
+    } catch (error) {
+      console.error("Error fetching KEV CVEs:", error);
+      // If there's an error, clear the filter
+      setKevFilteredCVEs([]);
     }
-    return filteredCVEs;
-  }, [filteredCVEs, kevFilterDate, kevFilteredCVEs]);
+  };
+  
+  fetchKEVCVEs();
+}, [activeFilter, filteredCVEs]);
 
-  // Generate an array of years from 2015 to current year
+// Modify the displayCVEs variable to use the KEVFilter results when available
+const displayCVEs = useMemo(() => {
+  if (kevFilterDate && kevFilteredCVEs.length > 0) {
+    return kevFilteredCVEs;
+  }
+  return filteredCVEs;
+}, [filteredCVEs, kevFilterDate, kevFilteredCVEs]); // Generate an array of years from 2015 to current year
   const getAllYears = useCallback(() => {
     const currentYear = new Date().getFullYear();
     const years = [];
@@ -321,7 +319,6 @@ export default function Index() {
       setIsLoading(true);
 
       for (const year of years) {
-        // console.log(`Fetching data for year ${year}...`);
         try {
           const response = await fetch(
             `https://acs-hackathon-backend.onrender.com/scrape-by-date/${year}`,
@@ -333,19 +330,12 @@ export default function Index() {
               },
             }
           );
-          const response = await fetch(`https://acs-hackathon-backend.onrender.com/scrape-by-date/${year}`,{
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-            },
-          });
+          
           if (!response.ok) {
             throw new Error(`HTTP error ${response.status}`);
           }
 
           const data = await response.json();
-          // console.log(data);
           let processedData: RawCVE[] = [];
 
           // Handle different possible data structures
@@ -403,9 +393,7 @@ export default function Index() {
             );
             allFormattedCVEs = [...allFormattedCVEs, ...formattedCVEs];
 
-            // console.log(
-            //   `Successfully fetched data for year ${year}. Items: ${processedData.length}`
-            // );
+            console.log(`Total CVEs loaded: ${allFormattedCVEs.length}`);
           } else {
             console.log(`No data found for year ${year}`);
           }
@@ -417,7 +405,6 @@ export default function Index() {
 
       // Update the full years data
       setCvesData(newCvesData);
-      // console.log(`Total years data collected: ${newCvesData.length}`);
 
       // Update the filter options with all years that have data
       const yearsWithData = newCvesData.map((yd) => yd.year);
@@ -431,8 +418,6 @@ export default function Index() {
       // Update the combined CVEs list
       if (allFormattedCVEs.length > 0) {
         setCves(allFormattedCVEs);
-        // console.log(`Total CVEs loaded: ${allFormattedCVEs.length}`);
-        console.log(`Total CVEs loaded: ${allFormattedCVEs.length}`);
         
         // Save to cache for future use
         await saveCacheData(newCvesData, allFormattedCVEs, yearsWithData);
@@ -465,8 +450,6 @@ export default function Index() {
     setYearFilters(initialFilters);
 
     // Fetch data for all years
-    
-    // Fetch data for all years or load from cache
     fetchYearData();
     
     // Optional: Add a cache refresh mechanism for when the app has been in the 
@@ -485,18 +468,18 @@ export default function Index() {
     prepare();
   }, [fontsLoaded]);
 
+  // Get display name for active filter
+  const getActiveFilterLabel = useCallback(() => {
+    const filter = yearFilters.find((item) => item.id === activeFilter);
+    return filter ? filter.label : "All Years";
+  }, [yearFilters, activeFilter]);
+
   // Handle scroll event to update active index
   const handleScroll = useCallback((event: any) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / width);
     setActiveIndex(index);
   }, []);
-
-  // Get display name for active filter
-  const getActiveFilterLabel = useCallback(() => {
-    const filter = yearFilters.find((item) => item.id === activeFilter);
-    return filter ? filter.label : "All Years";
-  }, [yearFilters, activeFilter]);
 
   // Open and close dropdown
   const toggleDropdown = useCallback(() => {
@@ -505,8 +488,6 @@ export default function Index() {
 
   // Select filter from dropdown
   const selectFilter = useCallback((filterId: any) => {
-  const selectFilter = useCallback((filterId) => {
-    console.log("Setting filter to:", filterId);
     setActiveFilter(filterId);
     setDropdownVisible(false);
   }, []);
@@ -563,14 +544,9 @@ export default function Index() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6722A8" />
         <Text style={styles.loadingText}>Loading vulnerability data...</Text>
         <StatusBar barStyle="default" />
-        <Text style={styles.loadingText}>
-          {loadingFromCache ? 'Loading from cache...' : 'Loading vulnerability data...'}
-        </Text>
-        <StatusBar style="auto" />
       </SafeAreaView>
     );
   }
@@ -666,11 +642,11 @@ export default function Index() {
             )}
           </View>
           <View style={styles.kevFilterWrapper}>
-            {/* <KEVFilter 
+            <KEVFilter 
               activeFilter={activeFilter}
               filteredCVEs={filteredCVEs}
               onApplyKEVFilter={handleKEVFilter}
-            /> */}
+            />
           </View>
 
           {/* Carousel for JobCards */}
