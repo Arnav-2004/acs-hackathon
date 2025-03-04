@@ -84,7 +84,7 @@ export const NoOfCVEByYearGraph = ({ cves, yearsData }) => {
     backgroundGradientFrom: "#222",
     backgroundGradientTo: "#111",
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(128, 0, 128, ${opacity})`,
+    color: (opacity = 1) => `rgba(208, 165, 249, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
     style: {
       borderRadius: 16,

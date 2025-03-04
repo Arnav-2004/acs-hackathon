@@ -11,6 +11,9 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  ToastAndroid,
+  Platform,
+  Alert,
 } from "react-native";
 import {
   useFonts,
@@ -22,6 +25,8 @@ import {
 } from "@expo-google-fonts/inter";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
 import { IconsUser } from "@/components/dashboard/IconUser";
 import JobCard from "@/components/dashboard/card";
 import { NoOfCVEByYearGraph } from "@/components/dashboard/NoOfCVEByYearGraph";
@@ -29,6 +34,8 @@ import { VulnerabilitiesByTypeChart } from "@/components/dashboard/Vulneranbilit
 import { VulnerabilitiesByTypeAndYearChart } from "@/components/dashboard/VulnerabilitiesByTypeAndYear";
 import VulnerabilityTable from "@/components/dashboard/VulnerabilityTable";
 import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
+import { ProfileModal } from "@/components/dashboard/Modal";
+import KEVFilter from "@/components/dashboard/KEVFilter";
 
 const { width, height } = Dimensions.get("window");
 
@@ -65,6 +72,17 @@ interface YearData {
   data: RawCVE[];
 }
 
+// Define constants for cache keys and expiration
+const CACHE_KEYS = {
+  CVES_DATA: 'cves_data',
+  CVES_FORMATTED: 'cves_formatted',
+  YEARS_WITH_DATA: 'years_with_data',
+  CACHE_TIMESTAMP: 'cve_cache_timestamp',
+};
+
+// Set cache expiration to 24 hours (in milliseconds)
+const CACHE_EXPIRATION = 24 * 60 * 60 * 1000;
+
 export default function Index() {
   const [fontsLoaded] = useFonts({
     Inter_900Black,
@@ -82,7 +100,76 @@ export default function Index() {
   const [error, setError] = useState<string | null>(null);
   const [cvesData, setCvesData] = useState<YearData[]>([]);
   const [yearFilters, setYearFilters] = useState<{id: string, label: string}[]>([]);
+  const [loadingFromCache, setLoadingFromCache] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
+  const [kevFilteredCVEs, setKevFilteredCVEs] = useState<CVE[]>([]);
+  const [kevFilterDate, setKevFilterDate] = useState<string | null>(null);
   
+  // Memoized filtered CVEs to prevent recalculation on each render
+  const filteredCVEs = useMemo(() => {
+    if (activeFilter === "all") {
+      return cves;
+    }
+
+    return cves.filter((cve) => {
+      const year = cve.publisheddate.split("-")[0];
+      return year === activeFilter;
+    });
+  }, [cves, activeFilter]);
+  
+  const handleKEVFilter = useCallback((kevDate: string | null) => {
+    setKevFilterDate(kevDate);
+    
+    if (!kevDate) {
+      // If no KEV date is selected, clear the KEV filter
+      setKevFilteredCVEs([]);
+      return;
+    }
+    
+    // Filter the CVEs that match the KEV date
+    // You'll need to call your API endpoint to get the CVE IDs for the selected KEV date
+    const fetchKEVCVEs = async () => {
+      try {
+        const response = await fetch(`https://acs-hackathon-backend.onrender.com/scrape-known-exploited/${activeFilter}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+        
+        const kevData = await response.json();
+        
+        // Extract CVE IDs that match the selected date
+        const matchingCVEIDs = kevData
+          .filter(item => item.cisakevadded === kevDate)
+          .map(item => item.cveid);
+        
+        // Filter the current filteredCVEs to only include those in the matching IDs
+        const matchingCVEs = filteredCVEs.filter(cve => 
+          matchingCVEIDs.includes(cve.cveid)
+        );
+        
+        setKevFilteredCVEs(matchingCVEs);
+        
+        // Log the results for debugging
+        console.log(`Found ${matchingCVEs.length} CVEs that match KEV date ${kevDate}`);
+      } catch (error) {
+        console.error("Error fetching KEV CVEs:", error);
+        // If there's an error, clear the filter
+        setKevFilteredCVEs([]);
+      }
+    };
+    
+    fetchKEVCVEs();
+  }, [activeFilter, filteredCVEs]);
+  
+  // 4. Modify the displayCVEs variable to use the KEVFilter results when available
+  const displayCVEs = useMemo(() => {
+    if (kevFilterDate && kevFilteredCVEs.length > 0) {
+      return kevFilteredCVEs;
+    }
+    return filteredCVEs;
+  }, [filteredCVEs, kevFilterDate, kevFilteredCVEs]);
+
   // Generate an array of years from 2015 to current year
   const getAllYears = useCallback(() => {
     const currentYear = new Date().getFullYear();
@@ -143,9 +230,88 @@ export default function Index() {
     };
   }, []);
 
-  // Updated fetchYearData function to properly handle data for all years (2015-Present)
+  // Cache management functions
+  const saveCacheData = useCallback(async (cvesData: YearData[], formattedCVEs: CVE[], yearsWithData: string[]) => {
+    try {
+      const timestamp = Date.now();
+      const cacheData = {
+        cvesData,
+        formattedCVEs,
+        yearsWithData,
+        timestamp
+      };
+      
+      await AsyncStorage.setItem(CACHE_KEYS.CVES_DATA, JSON.stringify(cacheData));
+      console.log('Cache data saved successfully');
+    } catch (error) {
+      console.error('Error saving cache data:', error);
+    }
+  }, []);
+  
+  const loadCacheData = useCallback(async () => {
+    try {
+      setLoadingFromCache(true);
+      const cachedDataStr = await AsyncStorage.getItem(CACHE_KEYS.CVES_DATA);
+      
+      if (cachedDataStr) {
+        const cachedData = JSON.parse(cachedDataStr);
+        const { cvesData, formattedCVEs, yearsWithData, timestamp } = cachedData;
+        
+        // Check if cache is still valid
+        const now = Date.now();
+        if (now - timestamp < CACHE_EXPIRATION) {
+          console.log('Loading data from cache');
+          
+          // Update state with cached data
+          setCvesData(cvesData);
+          setCves(formattedCVEs);
+          
+          // Update year filters
+          const allYears = ["all", ...yearsWithData];
+          const newFilters = allYears.map(year => ({
+            id: year,
+            label: year === "all" ? "All Years" : year
+          }));
+          setYearFilters(newFilters);
+          
+          setIsLoading(false);
+          setLoadingFromCache(false);
+          return true; // Cache was valid and loaded
+        } else {
+          console.log('Cache expired, fetching fresh data');
+          await AsyncStorage.removeItem(CACHE_KEYS.CVES_DATA);
+        }
+      } else {
+        console.log('No cache data found');
+      }
+      
+      setLoadingFromCache(false);
+      return false; // No valid cache found
+    } catch (error) {
+      console.error('Error loading cache data:', error);
+      setLoadingFromCache(false);
+      return false;
+    }
+  }, []);
+  
+  const clearCache = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(CACHE_KEYS.CVES_DATA);
+      console.log('Cache cleared successfully');
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+    }
+  }, []);
+
+  // Function to fetch data for a specific year
   const fetchYearData = useCallback(async () => {
     try {
+      // First try to load from cache
+      const cacheLoaded = await loadCacheData();
+      if (cacheLoaded) {
+        return; // If cache was loaded successfully, no need to fetch
+      }
+      
       const years = getAllYears();
       const newCvesData: YearData[] = [];
       let allFormattedCVEs: CVE[] = [];
@@ -162,7 +328,6 @@ export default function Index() {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
             },
-
           });
           if (!response.ok) {
             throw new Error(`HTTP error ${response.status}`);
@@ -243,6 +408,9 @@ export default function Index() {
       if (allFormattedCVEs.length > 0) {
         setCves(allFormattedCVEs);
         console.log(`Total CVEs loaded: ${allFormattedCVEs.length}`);
+        
+        // Save to cache for future use
+        await saveCacheData(newCvesData, allFormattedCVEs, yearsWithData);
       } else {
         // If no data was found, use a fallback message
         setError("No vulnerability data found for any year");
@@ -254,7 +422,8 @@ export default function Index() {
       setError("Failed to load vulnerability data");
       setIsLoading(false);
     }
-  }, [getAllYears, convertRawCVE]);
+  }, [getAllYears, convertRawCVE, loadCacheData, saveCacheData]);
+  
 
   // Updated useEffect to remove sample data and initialize the app state
   useEffect(() => {
@@ -270,8 +439,14 @@ export default function Index() {
     }));
     setYearFilters(initialFilters);
     
-    // Fetch data for all years
+    // Fetch data for all years or load from cache
     fetchYearData();
+    
+    // Optional: Add a cache refresh mechanism for when the app has been in the 
+    // background for a while (e.g., when the user comes back to this screen)
+    return () => {
+      // Cleanup if needed
+    };
   }, [fetchYearData, getAllYears]);
 
   useEffect(() => {
@@ -283,30 +458,18 @@ export default function Index() {
     prepare();
   }, [fontsLoaded]);
 
-  // Memoized filtered CVEs to prevent recalculation on each render
-  const filteredCVEs = useMemo(() => {
-    if (activeFilter === "all") {
-      return cves;
-    }
-
-    return cves.filter((cve) => {
-      const year = cve.publisheddate.split("-")[0];
-      return year === activeFilter;
-    });
-  }, [cves, activeFilter]);
-
-  // Get display name for active filter
-  const getActiveFilterLabel = useCallback(() => {
-    const filter = yearFilters.find((item) => item.id === activeFilter);
-    return filter ? filter.label : "All Years";
-  }, [yearFilters, activeFilter]);
-
   // Handle scroll event to update active index
   const handleScroll = useCallback((event) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / width);
     setActiveIndex(index);
   }, []);
+
+  // Get display name for active filter
+  const getActiveFilterLabel = useCallback(() => {
+    const filter = yearFilters.find((item) => item.id === activeFilter);
+    return filter ? filter.label : "All Years";
+  }, [yearFilters, activeFilter]);
 
   // Open and close dropdown
   const toggleDropdown = useCallback(() => {
@@ -315,9 +478,55 @@ export default function Index() {
 
   // Select filter from dropdown
   const selectFilter = useCallback((filterId) => {
+    console.log("Setting filter to:", filterId);
     setActiveFilter(filterId);
     setDropdownVisible(false);
   }, []);
+
+  // Function to copy the filtered data to clipboard
+  const copyFilteredDataToClipboard = useCallback(async () => {
+    if (isCopying) return;
+    
+    setIsCopying(true);
+    try {
+      let dataToCopy;
+      
+      if (activeFilter === "all") {
+        // Copy all data
+        dataToCopy = JSON.stringify(cves, null, 2);
+      } else {
+        // Copy only the data for the selected year
+        dataToCopy = JSON.stringify(filteredCVEs, null, 2);
+      }
+      
+      await Clipboard.setStringAsync(dataToCopy);
+      
+      // Show success message based on platform
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(`${getActiveFilterLabel()} data copied to clipboard`, ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Success', `${getActiveFilterLabel()} data copied to clipboard`);
+      }
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      // Show error message
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Failed to copy data', ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Error', 'Failed to copy data to clipboard');
+      }
+    } finally {
+      setIsCopying(false);
+    }
+  }, [activeFilter, cves, filteredCVEs, getActiveFilterLabel, isCopying]);
+
+  // Force refresh data
+  const forceRefresh = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    await clearCache();
+    fetchYearData();
+  }, [clearCache, fetchYearData]);
 
   if (!fontsLoaded) {
     return null;
@@ -325,9 +534,11 @@ export default function Index() {
 
   if (isLoading) {
     return (
-    <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6722A8" />
-        <Text style={styles.loadingText}>Loading vulnerability data...</Text>
+        <Text style={styles.loadingText}>
+          {loadingFromCache ? 'Loading from cache...' : 'Loading vulnerability data...'}
+        </Text>
         <StatusBar style="auto" />
       </SafeAreaView>
     );
@@ -339,11 +550,7 @@ export default function Index() {
         <Text style={styles.text}>{error}</Text>
         <TouchableOpacity
           style={styles.retryButton}
-          onPress={() => {
-            setIsLoading(true);
-            setError(null);
-            fetchYearData();
-          }}
+          onPress={forceRefresh}
         >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
@@ -367,15 +574,28 @@ export default function Index() {
               This is your weekly report for the publicly listed vulnerabilities
             </Text>
           </View>
-          <Link href="/profile" style={styles.link}>
-            <IconsUser />
-          </Link>
+          <ProfileModal />
+
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.text, { paddingHorizontal: 30 }]}>
-            Weekly Report
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.text, { paddingHorizontal: 30 }]}>
+              Weekly Report
+            </Text>
+            
+            {/* Added refresh button */}
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={forceRefresh}
+              accessible={true}
+              accessibilityLabel="Refresh data"
+              accessibilityRole="button"
+              accessibilityHint="Clears cache and fetches fresh vulnerability data"
+            >
+              <Text style={styles.refreshButtonText}>↻</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Year Dropdown - Improved Accessibility */}
           <View style={styles.dropdownContainer}>
@@ -393,12 +613,39 @@ export default function Index() {
               </Text>
               <Text style={styles.dropdownIcon}>▼</Text>
             </TouchableOpacity>
+            
+            {/* Copy Button */}
+            {activeFilter !== "all" && filteredCVEs.length > 0 && (
+              <TouchableOpacity
+                style={[
+                  styles.copyButton,
+                  isCopying && styles.copyButtonDisabled
+                ]}
+                onPress={copyFilteredDataToClipboard}
+                disabled={isCopying}
+                accessible={true}
+                accessibilityLabel={`Copy ${getActiveFilterLabel()} data as JSON`}
+                accessibilityRole="button"
+                accessibilityHint="Copies all vulnerability data for the selected year to clipboard in JSON format"
+              >
+                <Text style={styles.copyButtonText}>
+                  {isCopying ? 'Copying...' : 'Copy JSON'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.kevFilterWrapper}>
+            {/* <KEVFilter 
+              activeFilter={activeFilter}
+              filteredCVEs={filteredCVEs}
+              onApplyKEVFilter={handleKEVFilter}
+            /> */}
           </View>
 
           {/* Carousel for JobCards */}
           <FlatList
             ref={flatlistRef}
-            data={filteredCVEs}
+            data={displayCVEs}
             keyExtractor={(item) => item.cveid}
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -527,6 +774,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     paddingTop: 30,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 30,
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  refreshButtonText: {
+    color: '#eee',
+    fontSize: 18,
+  },
   text: {
     color: "#eee",
     fontFamily: "Inter_600SemiBold",
@@ -558,6 +820,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     position: "relative",
     zIndex: 1000,
+    flexDirection: "row", // Changed to row for placing copy button
+    alignItems: "center", // Align items in the row
   },
   dropdownButton: {
     flexDirection: "row",
@@ -567,6 +831,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
+    flex: 1, // Take up available space
   },
   dropdownButtonText: {
     color: "#eee",
@@ -576,6 +841,24 @@ const styles = StyleSheet.create({
   dropdownIcon: {
     color: "#eee",
     fontSize: 12,
+  },
+  // Copy button styles
+  copyButton: {
+    backgroundColor: "#6722A8",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginLeft: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  copyButtonDisabled: {
+    backgroundColor: "rgba(103, 34, 168, 0.5)",
+  },
+  copyButtonText: {
+    color: "#fff",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
@@ -637,5 +920,10 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  kevFilterWrapper: {
+    marginHorizontal: 30,
+    marginBottom: 10,
+    zIndex: 900, // High z-index to ensure it appears over other elements
   },
 });

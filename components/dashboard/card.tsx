@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Linking,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Circle from "./circle";
@@ -130,7 +131,9 @@ export default function JobCard({ content }: any) {
                 <Text style={styles.sourceText}>{item.source}</Text>
               </View>
 
-              <TouchableOpacity style={styles.applyButtonContainer}>
+              <TouchableOpacity onPress={()=>{
+                Linking.openURL(item.link);
+              }} style={styles.applyButtonContainer}>
                 <LinearGradient
                   colors={theme.buttonGradient}
                   start={{ x: 0, y: 0.5 }}

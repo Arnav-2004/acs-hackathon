@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, X, ArrowRight } from "lucide-react-native";
+import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
 
 // Define option type for type safety
 type AnalysisOption = string;
@@ -209,6 +210,7 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
+      <FixedNavigationBar />
     </View>
   );
 };
