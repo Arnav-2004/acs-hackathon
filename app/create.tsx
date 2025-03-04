@@ -8,13 +8,9 @@ import {
   StyleSheet,
   Animated,
   Keyboard,
-  ViewStyle,
-  TextStyle,
-  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, X, ArrowRight } from "lucide-react-native";
-import { FixedNavigationBar } from "@/components/dashboard/fixedNavigationBar";
 import axios from "axios";
 
 // Define option type for type safety
@@ -22,26 +18,26 @@ type AnalysisOption = string;
 
 // Define the list of available options
 const OPTIONS: AnalysisOption[] = [
-  "SEO Analysis",
-  "Page Speed",
-  "Mobile Responsiveness",
-  "Security Check",
-  "Accessibility",
-  "Meta Tags",
-  "Content Quality",
-  "Backlink Analysis",
-  "Social Media Integration",
-  "Schema Markup",
-  "Image Optimization",
-  "Browser Compatibility",
-  "JavaScript Errors",
-  "CSS Validation",
-  "HTML Validation",
-  "Broken Links",
-  "Core Web Vitals",
-  "HTTPS Status",
-  "Cookie Compliance",
-  "Server Response Time",
+  "ASN",
+  "HTTP Header",
+  "Find Subdomain",
+  "Find Web Technology",
+  "Find Admin Panel",
+  "Find Directories",
+  "Whois Information",
+  "Port Scan",
+  "TCP Scan",
+  "UDP Scan",
+  "External Links",
+  "Banner Grab",
+  "Subnet Lookup",
+  "Reverse IP Lookup",
+  "Geo-Location",
+  "DNS Lookup",
+  "Trace Route",
+  "Firewall Detect",
+  "Vulnerability Scan",
+  "Zone Transfer",
 ];
 
 // Define component props if needed in the future
@@ -71,40 +67,36 @@ const WebsiteAnalyzerScreen: React.FC<WebsiteAnalyzerScreenProps> = () => {
   };
 
   // Form submission handler
-  // Fix for the handleSubmit function in your create.tsx file
-const handleSubmit = async (): Promise<void> => {
-  Animated.sequence([
-    Animated.timing(buttonScale, {
-      toValue: 0.95,
-      duration: 100,
-      useNativeDriver: true,
-    }),
-    Animated.timing(buttonScale, {
-      toValue: 1,
-      duration: 100,
-      useNativeDriver: true,
-    }),
-  ]).start();
-  
-  try {
-    // Use the actual website URL from the input field instead of hardcoded URL
-    const response = await fetch("https://acs-hackathon-backend.onrender.com/generate-insights/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ 
-        url: websiteUrl,
+  const handleSubmit = async () => {
+    Animated.sequence([
+      Animated.timing(buttonScale, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
       }),
-    });
-    console.log(response)
-  } catch (error) {
-    console.error("Fetch error:", error);
-    // Add error handling UI feedback
-  }
-  
-  Keyboard.dismiss();
-};
+      Animated.timing(buttonScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    axios
+      .post("https://acs-hackathon-backend.onrender.com/generate-insights", {
+        url: websiteUrl,
+      })
+      .then((response) => {
+        console.log(response.data);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
+    Keyboard.dismiss();
+    // Implementation for form submission
+    console.log("Website URL:", websiteUrl);
+    console.log("Selected options:", selectedOptions);
+  };
 
   return (
     <View style={styles.container}>
@@ -226,7 +218,6 @@ const handleSubmit = async (): Promise<void> => {
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
-      <FixedNavigationBar />
     </View>
   );
 };
