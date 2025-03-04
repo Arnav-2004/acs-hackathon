@@ -1,6 +1,37 @@
-# Welcome to your Expo app 👋
+# ShieldX
+
+PS7:  Build a web scraping system that continuously scans official and unofficial sources for OEM security vulnerabilities. Coupled with a user-friendly dashboard and integrated threat intelligence, this tool empowers organizations to proactively address risks and bolster their cybersecurity posture.
+
+**Presentation**: <a href="https://www.canva.com/design/DAGge-hogkU/S_g8eQSHHbjX3_lVk_WOxQ/edit?utm_content=DAGge-hogkU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton" target="_blank">View Here</a>
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+
+## Solution
+
+We are developing a mobile application that provides real-time access to OEM security vulnerabilities dating back to 2015, including known exploited vulnerabilities (KEVs). The application features a user-friendly dashboard with intuitive graphs and charts for easy data interpretation. Additionally, we integrate threat intelligence, allowing users to input a link and execute security assessment tools that simulate potential attacks. The system then leverages AI to analyze the results and generate actionable insights.
+
+### Key Features:
+
+- Live tracking of OEM vulnerabilities
+- Graphical dashboard for data visualization
+- Threat intelligence with AI-powered insights
+- Custom API for web scraping and attack simulations
+
+## Methodology
+
+Data Collection -> Data Processing & Storage -> Dashboard & Visualization -> API Development & Mobile App Integration -> Threat Intelligence Integration
+
+## Workflow
+
+Scraping & Data Collection -> Dashboard Display -> Threat Intelligence Execution -> Continuous Updates & Alerts
+
+## Impact
+
+- Proactive Threat Mitigation – Organizations can identify and address risks before exploitation.
+- Enhanced Cybersecurity Posture – AI-powered insights help in better decision-making.
+- Simplified Vulnerability Management – A user-friendly mobile app centralizes and visualizes data.
+- Faster Incident Response – Real-time data and threat intelligence allow for quick action.
+- Custom API Flexibility – Integrates with existing security systems for seamless monitoring.
 
 ## Get started
 
@@ -15,36 +46,3 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    ```bash
     npx expo start
    ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
